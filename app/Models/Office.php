@@ -33,11 +33,16 @@ class Office extends Model
 
     public function reservations(): HasMany
     {
-        return $this->hasMany(Reservations::class);
+        return $this->hasMany(Reservation::class);
     }
 
     public function images(): MorphMany
     {
         return $this->morphMany(Image::class, 'resource');
+    }
+
+    public function tags()
+    {
+        return $this->belongsToMany(Tag::class, 'offices_tags');
     }
 }

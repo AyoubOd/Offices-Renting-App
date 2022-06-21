@@ -16,6 +16,7 @@ class OfficeController extends Controller
             ->where('hidden', false)
             ->when(request('host_id'), fn ($query) => $query->where('user_id', request('host_id'))) // the one who owns the office
             ->when(request('user_id'), fn ($query) => $query->whereRelation('reservations', 'user_id', '=', request('user_id'))) // all the offices reserved by this user
+            ->with(['images', 'tags', 'user'])
             ->latest('id')
             ->paginate(20);
 
