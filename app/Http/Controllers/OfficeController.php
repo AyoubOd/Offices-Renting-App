@@ -3,15 +3,20 @@
 namespace App\Http\Controllers;
 
 use App\Http\Resources\OfficeResource;
-use Illuminate\Database\Schema\Builder;
 use App\Models\Office;
 use App\Models\Reservation;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
+use Illuminate\Support\Arr;
 
-use function GuzzleHttp\Promise\each;
 
 class OfficeController extends Controller
 {
+    /**
+     * index
+     *
+     * @return JsonResource
+     */
     public function index()
     {
         $offices = Office::query()
@@ -34,11 +39,48 @@ class OfficeController extends Controller
     }
 
 
+    /**
+     * show
+     *
+     * @param  Office $office
+     * @return JsonResource
+     */
     public function show(Office $office)
     {
         $office->loadCount(['reservations' => fn ($query) => $query->where('status', Reservation::STATUS_ACTIVE)])
             ->load(['images', 'user', 'tags']);
 
         return OfficeResource::make($office); // same as doing *return new OfficeResource($office)*
+    }
+
+
+    public function create(Request $request)
+    {
+        $validated_data = validator(
+            $request->all(),
+            [
+                'title' => ['required', 'string'],
+                'description' => ['required', 'string'],
+                'lat' => ['required', 'numeric'],
+                'lng' => ['required', 'numeric'],
+                'address_line1' => ['required', 'string'],
+                'address_line2' => ['string'],
+                'hidden' => ['required', 'boolean'],
+                'price_per_day' => ['required', 'numeric', 'min:100'],
+                'monthly_discount' => 'min:0',
+
+                'tags' => 'array',
+                'tags.*' => ['integer', Rule::exists('tags', 'id')]
+            ]
+        )->validate();
+
+        $validated_data['user_id'] = auth()->user()->id;
+
+        $office = Office::create(
+            Arr::except($validated_data, ['tags'])
+        );
+
+        $office->tags()->sync($validated_data['tags']);
+        return OfficeResource::make($office);
     }
 }

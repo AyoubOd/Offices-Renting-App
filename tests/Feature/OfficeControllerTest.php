@@ -10,10 +10,14 @@ use Illuminate\Foundation\Testing\WithFaker;
 use Tests\TestCase;
 use App\Models\Image;
 use App\Models\Tag;
+use Illuminate\Contracts\Auth\Authenticatable;
+use Illuminate\Support\Arr;
+use Laravel\Sanctum\Sanctum;
 
 class OfficeControllerTest extends TestCase
 {
     use RefreshDatabase;
+    use WithFaker;
     /**
      * @test
      */
@@ -126,5 +130,62 @@ class OfficeControllerTest extends TestCase
         $response = $this->get('/api/offices/' . $office->id);
         $response->dump('data');
         $this->assertEquals(3, $response->json('data')['reservations_count']);
+    }
+
+
+    /**
+     * @test
+     */
+    public function itCreatesAnOffice()
+    {
+        // authenticating a user
+        $user = User::factory()->create();
+        $this->actingAs($user);
+
+        $response = $this->postJson('/api/offices', [
+            'title' => $this->faker->title,
+            'description' => $this->faker->paragraph(),
+            'lat' => $this->faker->latitude(),
+            'lng' => $this->faker->longitude(),
+            'address_line1' => $this->faker->address(),
+            'price_per_day' => $this->faker->numberBetween(100, 2000),
+            'monthly_discount' => 0,
+            'hidden' => false,
+            'tags' => [
+                Tag::factory()->create()->id,
+                Tag::factory()->create()->id
+            ]
+        ]);
+
+        $response->assertCreated();
+    }
+
+    /**
+     * @test
+     */
+
+    public function itCanCreateAnOfficeWithAtoken()
+    {
+        $user = Sanctum::actingAs(
+            User::factory()->create(),
+            ['office.create']
+        );
+
+        $response = $this->postJson('/api/offices', [
+            'title' => $this->faker->title,
+            'description' => $this->faker->paragraph(),
+            'lat' => $this->faker->latitude(),
+            'lng' => $this->faker->longitude(),
+            'address_line1' => $this->faker->address(),
+            'price_per_day' => $this->faker->numberBetween(100, 2000),
+            'monthly_discount' => 0,
+            'hidden' => false,
+            'tags' => [
+                Tag::factory()->create()->id,
+                Tag::factory()->create()->id
+            ]
+        ]);
+
+        $response->assertCreated();
     }
 }
