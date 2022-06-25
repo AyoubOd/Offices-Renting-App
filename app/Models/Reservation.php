@@ -26,8 +26,8 @@ class Reservation extends Model
         return $this->belongsTo(User::class);
     }
 
-    public function office(): HasMany
+    public function office(): BelongsTo
     {
-        return $this->hasMany(Office::class);
+        return $this->belongsTo(Office::class);
     }
 }
