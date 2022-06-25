@@ -17,8 +17,8 @@ class OfficeController extends Controller
         $offices = Office::query()
             ->where('approval_status', Office::APPROVAL_APPROVED)
             ->where('hidden', false)
-            ->when(request('host_id'), fn ($query) => $query->where('user_id', request('host_id'))) // the one who owns the office
-            ->when(request('user_id'), fn ($query) => $query->whereRelation('reservations', 'user_id', '=', request('user_id'))) // all the offices reserved by this user
+            ->when(request('user_id'), fn ($query) => $query->where('user_id', request('user_id'))) // the one who owns the office
+            ->when(request('visitor_id'), fn ($query) => $query->whereRelation('reservations', 'user_id', '=', request('visitor_id'))) // all the offices reserved by this user
             ->with(['images', 'tags', 'user', 'reservations'])
             ->withCount(['reservations' => fn ($query) => $query->where('status', Reservation::STATUS_ACTIVE)])
             ->when(
@@ -31,5 +31,14 @@ class OfficeController extends Controller
         return OfficeResource::collection(
             $offices
         );
+    }
+
+
+    public function show(Office $office)
+    {
+        $office->loadCount(['reservations' => fn ($query) => $query->where('status', Reservation::STATUS_ACTIVE)])
+            ->load(['images', 'user', 'tags']);
+
+        return OfficeResource::make($office); // same as doing *return new OfficeResource($office)*
     }
 }

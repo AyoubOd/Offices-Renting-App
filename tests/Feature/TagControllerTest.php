@@ -19,8 +19,6 @@ class TagControllerTest extends TestCase
 
         $response->assertStatus(200);
 
-        dd($response->json('data'));
-
         $this->assertNotNull($response->json('data')[0]['id']);
     }
 }
