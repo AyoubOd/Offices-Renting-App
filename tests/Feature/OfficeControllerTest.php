@@ -128,7 +128,6 @@ class OfficeControllerTest extends TestCase
         Reservation::factory(3)->for($office, 'office')->create();
 
         $response = $this->get('/api/offices/' . $office->id);
-        $response->dump('data');
         $this->assertEquals(3, $response->json('data')['reservations_count']);
     }
 
@@ -187,5 +186,26 @@ class OfficeControllerTest extends TestCase
         ]);
 
         $response->assertCreated();
+    }
+
+    /**
+     * @test
+     */
+    public function itUpdatesOffice()
+    {
+        $user = Sanctum::actingAs(
+            User::factory()->create(),
+            ['office.update']
+        );
+
+        $office = Office::factory()->hasAttached(
+            Tag::factory(2)->create(),
+        )->create();
+
+        $response = $this->put('/api/offices/' . $office->id, [
+            'title' => 'title update'
+        ]);
+
+        $this->assertEquals('title update', $response->json('data')['title']);
     }
 }

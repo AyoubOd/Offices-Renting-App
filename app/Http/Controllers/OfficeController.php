@@ -5,9 +5,10 @@ namespace App\Http\Controllers;
 use App\Http\Resources\OfficeResource;
 use App\Models\Office;
 use App\Models\Reservation;
+use App\Models\Validators\OfficeValidator;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\DB;
 
 
 class OfficeController extends Controller
@@ -56,31 +57,51 @@ class OfficeController extends Controller
 
     public function create(Request $request)
     {
-        $validated_data = validator(
-            $request->all(),
-            [
-                'title' => ['required', 'string'],
-                'description' => ['required', 'string'],
-                'lat' => ['required', 'numeric'],
-                'lng' => ['required', 'numeric'],
-                'address_line1' => ['required', 'string'],
-                'address_line2' => ['string'],
-                'hidden' => ['required', 'boolean'],
-                'price_per_day' => ['required', 'numeric', 'min:100'],
-                'monthly_discount' => 'min:0',
+        // creating an instance of Office to pass it to the 
+        // OfficeValidator::validate() method  
+        $office = app()->make(Office::class);
 
-                'tags' => 'array',
-                'tags.*' => ['integer', Rule::exists('tags', 'id')]
-            ]
-        )->validate();
+        // validating and storing the validated data
+        $validated_data = app()->make(
+            OfficeValidator::class
+        )->validate($office, $request->all());
 
+        // attaching a user to the office (the owner of the office)
         $validated_data['user_id'] = auth()->user()->id;
 
-        $office = Office::create(
-            Arr::except($validated_data, ['tags'])
-        );
+        // ensuring that all the db queries are executed without errors
+        // we need those two queries to run and work both or not work both
+        DB::transaction(function () use ($validated_data, $office) {
+            $office->fill(
+                Arr::except($validated_data, ['tags'])
+            )->save();
 
-        $office->tags()->sync($validated_data['tags']);
+            $office->tags()->attach($validated_data['tags']);
+        });
+
+        // returning the json Api resource response
+        return OfficeResource::make($office);
+    }
+
+    public function update(Office $office, Request $request)
+    {
+        $validated_data = app()->make(
+            OfficeValidator::class
+        )->validate($office, $request->all());
+
+        // ensuring that all the db queries are executed without errors
+        // we need those two queries to run and work both or not work both
+        DB::transaction(function () use ($validated_data, $office) {
+            $office->update(
+                Arr::except($validated_data, ['tags'])
+            );
+
+            if (isset($validated_data['tags'])) {
+                $office->tags()->sync($validated_data['tags']);
+            }
+        });
+
+        // returning the json Api resource response
         return OfficeResource::make($office);
     }
 }
