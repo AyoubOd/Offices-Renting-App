@@ -21,7 +21,7 @@ class OfficeFactory extends Factory
         return [
             'user_id' => User::factory(),
             'title' => $this->faker->sentence(),
-            'description' => $this->faker->paragraph(),
+            'description' => $this->faker->paragraph(1),
             'lat' => $this->faker->latitude(),
             'lng' => $this->faker->longitude(),
             'address_line1' => $this->faker->address(),

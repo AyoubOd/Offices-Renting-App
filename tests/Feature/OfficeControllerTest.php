@@ -10,8 +10,10 @@ use Illuminate\Foundation\Testing\WithFaker;
 use Tests\TestCase;
 use App\Models\Image;
 use App\Models\Tag;
+use App\Notifications\OfficePendingNotification;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Notification;
 use Laravel\Sanctum\Sanctum;
 
 class OfficeControllerTest extends TestCase
@@ -137,6 +139,9 @@ class OfficeControllerTest extends TestCase
      */
     public function itCreatesAnOffice()
     {
+        Notification::fake();
+        $admin = User::factory()->create(['name' => 'Ayoub']);
+
         // authenticating a user
         $user = User::factory()->create();
         $this->actingAs($user);
@@ -156,6 +161,8 @@ class OfficeControllerTest extends TestCase
             ]
         ]);
 
+        Notification::assertSentTo($admin, OfficePendingNotification::class);
+
         $response->assertCreated();
     }
 
@@ -165,6 +172,9 @@ class OfficeControllerTest extends TestCase
 
     public function itCanCreateAnOfficeWithAtoken()
     {
+        Notification::fake();
+        $admin = User::factory()->create(['name' => 'Ayoub']);
+
         $user = Sanctum::actingAs(
             User::factory()->create(),
             ['office.create']
@@ -185,6 +195,8 @@ class OfficeControllerTest extends TestCase
             ]
         ]);
 
+        Notification::assertSentTo($admin, OfficePendingNotification::class);
+
         $response->assertCreated();
     }
 
@@ -198,14 +210,112 @@ class OfficeControllerTest extends TestCase
             ['office.update']
         );
 
+        $office = Office::factory()
+            ->hasAttached(
+                Tag::factory(2)->create(),
+            )
+            ->for($user, 'user')
+            ->create();
+
+        $response = $this->putJson('/api/offices/' . $office->id, [
+            'title' => 'title update'
+        ]);
+
+        $this->assertEquals('title update', $response->json('data')['title']);
+    }
+
+    /**
+     * @test
+     */
+    public function itAuthorizesJustTheOwnerToUdpateHisOffice()
+    {
+        $user = User::factory()->create();
+        Sanctum::actingAs(
+            $user,
+            ['office.update']
+        );
+
+
+        $anotherUser = User::factory()->create();
         $office = Office::factory()->hasAttached(
             Tag::factory(2)->create(),
-        )->create();
+        )->for($anotherUser, 'user')->create();
+
 
         $response = $this->put('/api/offices/' . $office->id, [
             'title' => 'title update'
         ]);
 
-        $this->assertEquals('title update', $response->json('data')['title']);
+        $response->assertStatus(403);
+    }
+
+    /**
+     * @test
+     */
+    public function itMakesTheUpdatedOfficePending()
+    {
+        Notification::fake();
+        $admin = User::factory()->create(['name' => 'Ayoub']);
+
+        $user = Sanctum::actingAs(
+            User::factory()->create(),
+            ['office.update']
+        );
+
+        $office = Office::factory()
+            ->hasAttached(
+                Tag::factory(2)->create(),
+            )
+            ->for($user, 'user')
+            ->create();
+
+        $response = $this->putJson('/api/offices/' . $office->id, [
+            'lng' => $this->faker->longitude()
+        ]);
+
+        Notification::assertSentTo($admin, OfficePendingNotification::class);
+
+        $this->assertEquals(Office::APPROVAL_PENDING, $response->json('data')['approval_status']);
+    }
+
+    /**
+     * @test
+     */
+    public function itCannotDeleteAnOfficeWithReservations()
+    {
+        $user = User::factory()->create();
+        Reservation::factory(2)->create(['status' => Reservation::STATUS_ACTIVE]);
+        $office = Office::factory()
+            ->for($user, 'user')
+            ->has(Reservation::factory(2), 'reservations')
+            ->create();
+
+        Sanctum::actingAs(
+            $user,
+            ['office.delete']
+        );
+
+        $response = $this->deleteJson('/api/offices/' . $office->id);
+        $response->assertStatus(422);
+    }
+
+    /**
+     * @test
+     */
+
+    public function itAuthorizesJustTheOwnerToDeleteHisOffice()
+    {
+        $user = User::factory()->create();
+        $office = Office::factory()->for($user, 'user')->create();
+
+        $anotherUser = User::factory()->create();
+
+        Sanctum::actingAs(
+            $anotherUser,
+            ['office.delete']
+        );
+
+        $response = $this->delete('/api/offices/' . $office->id);
+        $response->assertStatus(403);
     }
 }

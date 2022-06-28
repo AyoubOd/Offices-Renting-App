@@ -25,10 +25,15 @@ Route::get('/tags', TagController::class);
 Route::get('/offices', [OfficeController::class, 'index']);
 Route::get('/offices/{office}', [OfficeController::class, 'show']);
 
-Route::middleware(['auth:sanctum', 'verified',])->group(function () {
-    Route::post('/offices', [OfficeController::class, 'create'])
-        ->middleware(['ability:office.create']);
+Route::middleware(['auth:sanctum', 'verified',])
+    ->prefix('offices')
+    ->group(function () {
+        Route::post('/', [OfficeController::class, 'create'])
+            ->middleware(['ability:office.create']);
 
-    Route::put('/offices/{office}', [OfficeController::class, 'update'])
-        ->middleware(['ability:office.update']);
-});
+        Route::put('/{office}', [OfficeController::class, 'update'])
+            ->middleware(['ability:office.update']);
+
+        Route::delete('/{office}', [OfficeController::class, 'delete'])
+            ->middleware(['ability:office.delete']);
+    });

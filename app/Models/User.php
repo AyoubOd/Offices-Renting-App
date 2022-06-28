@@ -47,4 +47,9 @@ class User extends Authenticatable
     {
         return $this->morphOne(Image::class, 'resource');
     }
+
+    public function offices()
+    {
+        return $this->hasMany(Office::class);
+    }
 }

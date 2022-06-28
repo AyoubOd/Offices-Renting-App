@@ -7,9 +7,12 @@ use App\Models\Office;
 use App\Models\Reservation;
 use App\Models\Validators\OfficeValidator;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
-
+use App\Models\User;
+use App\Notifications\OfficePendingNotification;
+use Illuminate\Validation\ValidationException;
 
 class OfficeController extends Controller
 {
@@ -79,15 +82,23 @@ class OfficeController extends Controller
             $office->tags()->attach($validated_data['tags']);
         });
 
+        Notification::send(User::firstWhere('name', 'Ayoub'), new OfficePendingNotification($office));
+
         // returning the json Api resource response
         return OfficeResource::make($office);
     }
 
     public function update(Office $office, Request $request)
     {
+        $this->authorize('update', [$office]);
+
         $validated_data = app()->make(
             OfficeValidator::class
         )->validate($office, $request->all());
+
+        if ($requiresReview = Arr::hasAny($validated_data, ['lat', 'lng', 'price_per_day'])) {
+            $validated_data = Arr::add($validated_data, 'approval_status', Office::APPROVAL_PENDING);
+        }
 
         // ensuring that all the db queries are executed without errors
         // we need those two queries to run and work both or not work both
@@ -101,7 +112,24 @@ class OfficeController extends Controller
             }
         });
 
+        if ($requiresReview == true) {
+            Notification::send(User::firstWhere('name', 'Ayoub'), new OfficePendingNotification($office));
+        }
+
         // returning the json Api resource response
         return OfficeResource::make($office);
+    }
+
+
+    public function delete(Office $office)
+    {
+        $this->authorize('delete', [$office]);
+
+        throw_if(
+            $office->reservations()->where('status', Reservation::STATUS_ACTIVE)->exists(),
+            ValidationException::withMessages(['office' => 'this Office cannot be deleted'])
+        );
+
+        return $office->delete();
     }
 }
