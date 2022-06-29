@@ -140,7 +140,7 @@ class OfficeControllerTest extends TestCase
     public function itCreatesAnOffice()
     {
         Notification::fake();
-        $admin = User::factory()->create(['name' => 'Ayoub']);
+        $admin = User::factory()->create(['is_admin' => true]);
 
         // authenticating a user
         $user = User::factory()->create();
@@ -173,7 +173,7 @@ class OfficeControllerTest extends TestCase
     public function itCanCreateAnOfficeWithAtoken()
     {
         Notification::fake();
-        $admin = User::factory()->create(['name' => 'Ayoub']);
+        $admin = User::factory()->create(['is_admin' => true]);
 
         $user = Sanctum::actingAs(
             User::factory()->create(),
@@ -255,7 +255,7 @@ class OfficeControllerTest extends TestCase
     public function itMakesTheUpdatedOfficePending()
     {
         Notification::fake();
-        $admin = User::factory()->create(['name' => 'Ayoub']);
+        $admin = User::factory()->create(['is_admin' => true]);
 
         $user = Sanctum::actingAs(
             User::factory()->create(),

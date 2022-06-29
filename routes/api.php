@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\OfficeController;
+use App\Http\Controllers\OfficeImagesController;
 use App\Http\Controllers\TagController;
 use App\Models\Office;
 use Illuminate\Http\Request;
@@ -36,4 +37,8 @@ Route::middleware(['auth:sanctum', 'verified',])
 
         Route::delete('/{office}', [OfficeController::class, 'delete'])
             ->middleware(['ability:office.delete']);
+
+        Route::post('{office}/images', [OfficeImagesController::class, 'store'])
+            ->middleware('ability:images.create');
     });
+
